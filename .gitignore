@@ -3,3 +3,5 @@ cabal.sandbox.config
 dist
 .corectl
 .ghc
+*.prof
+*.prof.html
