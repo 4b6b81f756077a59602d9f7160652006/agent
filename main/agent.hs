@@ -41,8 +41,8 @@ parser :: Parser Arguments
 parser =
   Arguments
     <$> optional (Leader
-      <$> flag DoNotTerminate Terminate (long "terminate-nodes-on-completion")
-      <*> (Duration <$> option auto (long "send-for" <> value 1))
+      <$> flag DoNotTerminate Terminate (long "terminate-on-completion")
+      <*> (Duration <$> option auto (long "send-for"))
       <*> (Duration <$> option auto (long "wait-for" <> value 1))
       <*> (Seed <$> option auto (long "with-seed" <> value 0)))
     <*> (strOption (long "host" <> value "127.0.0.1"))
