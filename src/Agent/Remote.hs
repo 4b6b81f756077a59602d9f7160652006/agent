@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Agent.Remote (
     agent
@@ -11,6 +12,8 @@ import           Agent.Data.Log (Log (..), Value (..))
 import qualified Agent.Data.Log as Log
 import           Agent.Data.Random (Random (..))
 import qualified Agent.Data.Random as Random
+import           Agent.Data.Timer (Timer (..))
+import qualified Agent.Data.Timer as Timer
 import           Agent.Protocol
 
 import           Control.Monad (unless)
@@ -26,8 +29,8 @@ import           Prelude hiding (log)
 -- |
 -- Replicate @log@ to every @peer@.
 --
-_replication :: [ProcessId] -> Log ProcessId -> Process (Log ProcessId)
-_replication peers log = do
+replication :: [ProcessId] -> Log ProcessId -> Process (Log ProcessId)
+replication peers log = do
   for_ peers $ \pid -> do
     let d = Log.delta pid log
     unless (Log.null d) $ do
@@ -43,8 +46,8 @@ _replication peers log = do
 -- of the distinction allows downstream to decide how to handle the
 -- different paths.
 --
-_receive :: Log ProcessId -> Process (Either (Log ProcessId) (Log ProcessId))
-_receive log =
+receive :: Log ProcessId -> Process (Either (Log ProcessId) (Log ProcessId))
+receive log =
   Process.expectTimeout 0 >>= \message -> case message of
     Just (Replicate remote) -> do
       self <- Process.getSelfPid
@@ -55,8 +58,8 @@ _receive log =
 -- |
 -- Generate and append a new pseudo-random value to the log.
 --
-_append :: Random -> Log ProcessId  -> Process (Log ProcessId)
-_append random log = do
+append :: Random -> Log ProcessId  -> Process (Log ProcessId)
+append random log = do
   self <- Process.getSelfPid
   value <- Value <$> Random.next random
   pure $ Log.append self value log
@@ -68,11 +71,47 @@ finalise :: ProcessId -> Log ProcessId -> Process ()
 finalise leader log = do
   self <- Process.getSelfPid
   let
-    !messages = Log.size log
+    !messages = Log.length log
     !total = Log.total log
   Process.say $ mconcat ["messages = ", show messages, ", total = ", show total]
   Process.reconnect leader
   Process.send leader (Complete self messages total)
+
+data State =
+    Sending !ProcessId !Random !(Log ProcessId) ![ProcessId] !Timer !Timer
+  | Grace !ProcessId !(Log ProcessId) !Timer
+
+-- |
+-- The main loop. The loop operates in two phases @Sending@ or @Grace@.
+-- During @Sending@ the loop is interleaving receives and sends, trying
+-- to get messages to all peers. During @Grace@ we no longer send, but
+-- do merge any replication events till on the wire. Each phase has a
+-- fixed time limit. @Grace@ will finish early if there are no more
+-- messages.
+--
+loop :: State -> Process ()
+loop (Sending client random log peers sendUntil waitUntil) = do
+  done <- Timer.expired sendUntil
+  if not done then do
+    updated <- receive log >>= append random . either id id >>= replication peers
+    loop (Sending client random updated peers sendUntil waitUntil)
+  else do
+    Process.say "completed sending, entering grace period..."
+    loop (Grace client log waitUntil)
+
+loop (Grace client log waitUntil) = do
+  done <- Timer.expired waitUntil
+  if not done then do
+    updated' <- receive log
+    case updated' of
+      Left updated -> do
+        Process.say "no more messages, calculating results..."
+        finalise client updated
+      Right updated ->
+        loop (Grace client updated waitUntil)
+  else do
+    Process.say "grace period complete, calculating the results we have..."
+    finalise client log
 
 agent :: ProcessId -> Process ()
 agent leader =
