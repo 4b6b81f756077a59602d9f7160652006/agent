@@ -80,6 +80,9 @@ docker ps # pull out container-id
 docker cp <container-id>:/usr/local/bin/agent .
 ```
 
+The docker build is also useful for testing network failures with something
+like [blockade](http://blockade.readthedocs.io/en/latest/install.html).
+
 Running tests:
 
 ````
@@ -142,6 +145,22 @@ have taken the following view of the problem (in order of priority):
  already a decent size interview problem I have opted for focusing
  on (1) and (2).
 
+How I approached the problem boils down to: psuedo-randomness; time &
+ordering of messages; and, distribution. I have discussed these below.
+
+### psuedo-randomness
+
+I interpretted the _deterministic_ random number requirement to mean:
+each run as a whole is deterministic starting from a single seed, with
+individual nodes all having their own independent pseudo-random
+stream. I implemented this in a pretty naive way, the leader starts
+with a single seed for a RNG, the leader splits the RNG by generating
+a derived seed (deterministically from the first seed) in order for
+each follower. Each follower then uses that seed to generate its own
+independent stream of numbers. There are more throrough alorithms for
+creanting splittable RNG's, but they didn't seem necessary in this
+case.
+
 ### time & order of messages
 
 Given the problem as stated, we have to work out a total ordering for
@@ -157,7 +176,6 @@ Alternatives to the logical clock approach are possible, but on the
 surface would appear impossibly error prone (using physical clocks) or
 far too restrictive (establishing co-ordination between the nodes at
 the cost of availability in the face of failure) for this problem.
-
 
 ### distribution
 
@@ -186,6 +204,7 @@ and then extending our _Vector Clock_ into a _Matrix Clock_ so we can
 track what every other node knows about, not just ourselves. The
 _Matrix Clock_ establishes a lower bounds on what each node knows
 about, allowing us to trim the log to only contain relevant messages.
+
 
 ### future
 
