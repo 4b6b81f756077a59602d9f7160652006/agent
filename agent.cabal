@@ -34,6 +34,7 @@ library
     Agent.Data.Clock
     Agent.Data.Random
     Agent.Data.Timer
+    Agent.Data.VectorClock
 
     Agent.Protocol
     Agent.Remote
