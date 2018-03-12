@@ -16,10 +16,11 @@ import           Agent.Data.Timer (Timer (..))
 import qualified Agent.Data.Timer as Timer
 import           Agent.Protocol
 
-import           Control.Monad (unless)
 import           Control.Distributed.Process (Process, ProcessId)
 import qualified Control.Distributed.Process as Process
 import           Control.Distributed.Process.Closure (remotable)
+import           Control.Monad (unless)
+import           Control.Monad.IO.Class (MonadIO (..))
 
 import           Data.Foldable (for_)
 
@@ -113,12 +114,21 @@ loop (Grace client log waitUntil) = do
     Process.say "grace period complete, calculating the results we have..."
     finalise client log
 
+-- |
+-- Agent starting point. Just waits for an 'Initialise' message.
+--
 agent :: ProcessId -> Process ()
 agent leader =
   Process.expect >>= \message -> case message of
-    Initialise _ _ _ _ -> do
+    Initialise processes sendFor waitFor seed -> do
+      Process.say "starting..."
       self <- Process.getSelfPid
-      Process.say "it is alive!"
-      Process.send leader (Complete self 0 0)
+      sendUntil <- liftIO $ Timer.new sendFor
+      random <- Random.new seed
+      let
+        log = Log.new self
+        peers = filter (/= self) processes
+        waitUntil = Timer.after waitFor sendUntil
+      loop $ Sending leader random log peers sendUntil waitUntil
 
 remotable ['agent]
