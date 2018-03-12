@@ -2,6 +2,78 @@
 
 A solution for the IOHK ch/otp problem.
 
+## usage
+
+There is one executable `agent`, that does the right thing depending
+on how you call it.
+
+The basic architecture is built around a leader/follower model using
+`distributed-process-simplelocalnet`.
+
+You start `n` followers. Then you kick off the leader to run the
+problem on the followers.
+
+To start a follower:
+
+```
+# This will bind to a random free port on localhost.
+agent &
+
+# To expose to a wider network you can specify a host and port.
+agent --host 10.1.1.9 --port 9999 &
+```
+
+To start the leader:
+
+```
+# This will work if working with agents on a single machine.
+agent --send-for 10 --wait-for 2
+
+# Expose to the network just like the followers.
+agent --send-for 10 --wait-for 2 --host 10.1.1.9 --port 8888
+
+# You can also specify a seed if you would like.
+agent --send-for 10 --wait-for 2 --with-seed 123
+
+# By default, the leader will leave the followers up so they
+# can be called again latter to run the problem multiple times,
+# however if you want to terminate after you are done, just say
+# so. This is useful if you are profiling and need the follower
+# to exit.
+agent --send-for 10 --wait-for 2 --terminate-on-completion
+```
+
+The leader will discover the followers via standard
+`distributed-process-simplelocalnet` discovery.
+
+
+## building
+
+To gen an executable out in: `dist/build/agent/agent`.
+
+I have built and tested this with GHC 8.0.2. There shouldn't be
+anything that causes issues on other versions though.
+
+You can build it with mafia or cabal (stack should also work, but
+I didn't test it).
+
+Mafia:
+
+```
+./mafia build
+```
+
+Cabal:
+
+```
+cabal sandbox init
+cabal install --only-dependencies
+cabal configure
+cabal build
+````
+
+
+
 ## problem
 
 Several nodes continuously send messages to other nodes in such way,
@@ -25,14 +97,24 @@ under which assumptions you chose it.
 
 ## solution
 
-There are a couple of interesting challenges to be addressed.
+There are a couple of interesting challenges to be addressed, with
+tradeoffs to be made for each of them. In guiding my implementation, I
+have taken the following view of the problem (in order of priority):
 
-The first is: what does _send time_ mean across a distributed set of
-nodes.
+ 1. A strong emphasis on making sure that all messages get to all
+ nodes. Reading this as an emphasis on _reliability_.
 
-The second is: how do we (with some reasonable level of efficiency)
-ensure nodes see as many of their peers messages as possible in the
-face of potential point-to-point communication failures.
+ 2. The message _ordering_ problem is significant, and under the
+ assumption that all messages do get to all nodes, then the result
+ will be _identical_ for every node. At no point should all messages
+ be shared and we arrive at different answers. Reading this as an
+ emphasis on _correctness_.
+
+ 3. We should be trying to achieve the highest _score_, which
+ translates to throughput, and an emphasis on _performance_. This
+ is obviously an important part of the problem, but given it is
+ already a decent size interview problem I have opted for focusing
+ on (1) and (2).
 
 ### time & order of messages
 
@@ -78,3 +160,39 @@ and then extending our _Vector Clock_ into a _Matrix Clock_ so we can
 track what every other node knows about, not just ourselves. The
 _Matrix Clock_ establishes a lower bounds on what each node knows
 about, allowing us to trim the log to only contain relevant messages.
+
+### future
+
+The current implementation is pretty naive (and subsequently not the
+fastest), and there are a number of interesting optimisations that
+could be pursued in the quest for the _largest score_, and for
+stabilising the drop off the current implementation has as you add
+nodes.
+
+Of particular note is the log structure maintained by each node. At
+the moment a complete log is kept for each node. This keeps it simple,
+but the _Matrix Clock_ provides enough information that it would be
+possible to incrementally calculate the final result and discard no
+longer required events.
+
+Another big improvement that could be made is just being less chatty,
+the approach at the moment is to be broadcast every send/replication,
+every loop. A non-trivial amount of overhead could be avoided just by
+being smarter with broadcasts, for example picking a replica-set from
+a sub-set of peers, rather than replicating to every know, the size of
+the replica-set could trade off resilience/recovery vs overheads. I
+have left the naive approach as is for the submission to keep in the
+spirit of _repeatedly sends message_.
+
+There are also a few constant factors that could also be improved. For
+the purpose of this exercise I decided to spend my time verifying the
+correctness of the replication rather that worrying about these. A
+profile will show up a couple of critical areas:
+
+ - The implementation of the Vector & Matrix clocks are just a
+   `Data.Map.Strict`. It gets a heavy work-out with horizon checks
+   performed for every replication message, and some benefit could be
+   had from spending some time optimising these data types.
+
+ - The delta log calculation. Partly because of the previously mention
+   clocks, but also because of the naive vector recreation.
