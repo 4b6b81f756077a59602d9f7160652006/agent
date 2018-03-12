@@ -2,6 +2,7 @@
 module Agent.Protocol (
     Initialise (..)
   , Complete (..)
+  , Replicate (..)
   ) where
 
 import           Agent.Data.Log (Log (..))
