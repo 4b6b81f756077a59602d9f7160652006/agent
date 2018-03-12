@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+import           Agent.Data.Random (Seed (..))
+import           Agent.Data.Timer (Duration (..))
 import           Agent.Protocol
 import           Agent.Remote
 
@@ -17,11 +19,16 @@ import           Data.Monoid ((<>))
 import           Network.Socket (HostName, ServiceName)
 
 import           Options.Applicative (Parser, execParser, info, helper)
-import           Options.Applicative (long, value, strOption, flag)
+import           Options.Applicative (long, option, auto, value, strOption, flag, optional)
 
+
+data Terminate =
+    Terminate
+  | DoNotTerminate
+    deriving Eq
 
 data Leader =
-  Leader
+  Leader Terminate Duration Duration Seed
 
 data Arguments =
   Arguments (Maybe Leader) HostName ServiceName
@@ -29,7 +36,11 @@ data Arguments =
 parser :: Parser Arguments
 parser =
   Arguments
-    <$> flag (Nothing) (Just Leader) (long "leader")
+    <$> optional (Leader
+      <$> flag DoNotTerminate Terminate (long "terminate-nodes-on-completion")
+      <*> (Duration <$> option auto (long "send-for" <> value 1))
+      <*> (Duration <$> option auto (long "wait-for" <> value 1))
+      <*> (Seed <$> option auto (long "with-seed" <> value 0)))
     <*> (strOption (long "host" <> value "127.0.0.1"))
     <*> (strOption (long "port" <> value "0"))
 
@@ -38,7 +49,7 @@ follower backend =
   Backend.startSlave backend
 
 leader :: Backend.Backend -> Leader -> IO ()
-leader backend Leader =
+leader backend _leader =
   Backend.startMaster backend $ \nodes -> do
     self <- Process.getSelfPid
     pids <- for nodes $ \n -> do
