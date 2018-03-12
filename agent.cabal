@@ -31,6 +31,8 @@ library
     src
 
   exposed-modules:
+    Agent.Data.Timer
+
     Agent.Protocol
     Agent.Remote
 

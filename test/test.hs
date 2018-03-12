@@ -4,8 +4,11 @@ import           System.Exit (exitFailure)
 import           System.IO (IO)
 import qualified System.IO as IO
 
+import qualified Test.Agent.Data.Timer
+
 
 main :: IO ()
 main =
   IO.hSetBuffering IO.stdout IO.LineBuffering >> sequence [
+      Test.Agent.Data.Timer.tests
     ] >>= \rs -> when (not . and $ rs) exitFailure
