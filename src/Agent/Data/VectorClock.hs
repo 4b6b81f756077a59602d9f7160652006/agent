@@ -48,10 +48,6 @@ fromList :: Ord a => [(a, Clock)] -> VectorClock a
 fromList =
   VectorClock . Map.fromList
 
-tick :: Ord a => a -> VectorClock a -> VectorClock a
-tick a =
-  VectorClock . Map.insertWith (const Clock.tick) a (Clock.tick Clock.new) . toMap
-
 set :: Ord a => a -> Clock -> VectorClock a -> VectorClock a
 set a clock =
   VectorClock . Map.insert a clock . toMap
@@ -59,6 +55,13 @@ set a clock =
 get :: Ord a => a -> VectorClock a -> Clock
 get a =
   Map.findWithDefault Clock.new a . toMap
+
+-- |
+-- Increment process @a@'s time, if @a@ doesn't exist yet, it
+-- will default to @Clock 0@ and be incremented.
+tick :: Ord a => a -> VectorClock a -> VectorClock a
+tick a =
+  VectorClock . Map.insertWith (const Clock.tick) a (Clock.tick Clock.new) . toMap
 
 -- |
 -- A pair of 'VectorClock' can be merged by taking the pairwise maximum of
@@ -74,9 +77,9 @@ merge a b =
       (toMap b)
 
 -- |
--- The maximum 'Clock' of a 'VectorClock' is useful to determine the next
--- Lamport 'Clock' time for a loca can be merged by taking the pairwise
--- maximum of each entry.
+-- The maximum 'Clock' of a 'VectorClock' is useful to determine the
+-- next Lamport 'Clock' time for a local can be merged by taking the
+-- pairwise maximum of each entry.
 maximum :: Ord a => VectorClock a -> Clock
 maximum (VectorClock clock) =
   case Map.elems clock of

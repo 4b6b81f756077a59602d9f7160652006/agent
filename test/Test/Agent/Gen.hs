@@ -2,6 +2,9 @@ module Test.Agent.Gen (
   -- * Clock
     clock
 
+  -- * MatrixClock
+  , matrixClock
+
   -- * Random
   , seed
 
@@ -17,12 +20,13 @@ module Test.Agent.Gen (
   , vectorClockFor
   ) where
 
-
 import           Agent.Data.Clock (Clock (..))
 import           Agent.Data.Random (Seed (..))
 import           Agent.Data.Timer (Duration (..))
 import           Agent.Data.VectorClock (VectorClock (..))
 import qualified Agent.Data.VectorClock as VectorClock
+import           Agent.Data.MatrixClock (MatrixClock (..))
+import qualified Agent.Data.MatrixClock as MatrixClock
 
 import qualified Data.List as List
 
@@ -30,9 +34,17 @@ import           Hedgehog hiding (Seed)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
+
 clock :: Gen Clock
 clock =
   Clock <$> Gen.int64 (Range.linear 0 1000)
+
+matrixClock :: Gen (MatrixClock Char)
+matrixClock = do
+  n <- Gen.int (Range.linear 0 26)
+  let ps = List.take n ['a'..'z']
+  v <- List.zip ['a'..'z'] <$> Gen.list (Range.linear 0 26) (vectorClockFor ps)
+  pure $ MatrixClock.fromList v
 
 seed :: Gen Seed
 seed =

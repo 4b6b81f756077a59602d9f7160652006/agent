@@ -32,6 +32,7 @@ library
 
   exposed-modules:
     Agent.Data.Clock
+    Agent.Data.MatrixClock
     Agent.Data.Random
     Agent.Data.Timer
     Agent.Data.VectorClock
