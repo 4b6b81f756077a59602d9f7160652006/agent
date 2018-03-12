@@ -17,9 +17,9 @@ import           Control.Distributed.Process.Closure (remotable)
 agent :: ProcessId -> Process ()
 agent client =
   Process.expect >>= \message -> case message of
-    Initialise -> do
+    Initialise _ _ _ _ -> do
       self <- Process.getSelfPid
       Process.say "it is alive!"
-      Process.send client (Complete self)
+      Process.send client (Complete self 0 0)
 
 remotable ['agent]

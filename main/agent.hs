@@ -10,16 +10,20 @@ import qualified Control.Distributed.Process as Process
 import           Control.Distributed.Process.Closure (mkClosure)
 import qualified Control.Distributed.Process.Node as Node
 import qualified Control.Distributed.Process.Backend.SimpleLocalnet as Backend
-import           Control.Monad (unless)
+import           Control.Monad (when, unless)
+import           Control.Monad.IO.Class (MonadIO (..))
 
 import           Data.Foldable (for_)
 import           Data.Traversable (for)
 import           Data.Monoid ((<>))
+import qualified Data.Vector as Vector
 
 import           Network.Socket (HostName, ServiceName)
 
 import           Options.Applicative (Parser, execParser, info, helper)
 import           Options.Applicative (long, option, auto, value, strOption, flag, optional)
+
+import qualified System.Random.MWC as Random
 
 
 data Terminate =
@@ -49,22 +53,31 @@ follower backend =
   Backend.startSlave backend
 
 leader :: Backend.Backend -> Leader -> IO ()
-leader backend _leader =
+leader backend (Leader terminate sendFor waitFor seed) =
   Backend.startMaster backend $ \nodes -> do
     self <- Process.getSelfPid
+    gen <- liftIO $ Random.initialize (Vector.singleton $ getSeed seed)
     pids <- for nodes $ \n -> do
       Process.spawn n ($(mkClosure 'agent) self)
     for_ pids $ \pid -> do
-      Process.send pid Initialise
+      split <- liftIO $ Seed <$> Random.uniform gen
+      Process.send pid (Initialise pids sendFor waitFor split)
     let
       wait remaining = do
-        Complete pid <- Process.expect
+        Complete pid messages total <- Process.expect
         let result = filter (/= pid) remaining
-        Process.say . mconcat $ ["complete: pid[", show pid, "]"]
+        Process.say . mconcat $ [
+            "complete: pid[", show pid, "], "
+          , "messages = ", show messages, ", "
+          , "total = ", show total
+          ]
         Process.say . mconcat $ ["remaining: pids", show result]
         unless (null result) $
           wait result
     wait pids
+    when (terminate == Terminate) $
+      for_ nodes $ \n -> do
+        Backend.terminateSlave n
 
 main :: IO ()
 main =
