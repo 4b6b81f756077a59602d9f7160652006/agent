@@ -7,8 +7,10 @@ module Agent.Remote (
   , agent__tdict
   ) where
 
-import           Agent.Data.Log (Log (..))
+import           Agent.Data.Log (Log (..), Value (..))
 import qualified Agent.Data.Log as Log
+import           Agent.Data.Random (Random (..))
+import qualified Agent.Data.Random as Random
 import           Agent.Protocol
 
 import           Control.Monad (unless)
@@ -23,6 +25,7 @@ import           Prelude hiding (log)
 
 -- |
 -- Replicate @log@ to every @peer@.
+--
 _replication :: [ProcessId] -> Log ProcessId -> Process (Log ProcessId)
 _replication peers log = do
   for_ peers $ \pid -> do
@@ -39,6 +42,7 @@ _replication peers log = do
 -- same log and can be unified with @either id id@, but keeping track
 -- of the distinction allows downstream to decide how to handle the
 -- different paths.
+--
 _receive :: Log ProcessId -> Process (Either (Log ProcessId) (Log ProcessId))
 _receive log =
   Process.expectTimeout 0 >>= \message -> case message of
@@ -48,13 +52,34 @@ _receive log =
     Nothing ->
       pure . Left $ log
 
+-- |
+-- Generate and append a new pseudo-random value to the log.
+--
+_append :: Random -> Log ProcessId  -> Process (Log ProcessId)
+_append random log = do
+  self <- Process.getSelfPid
+  value <- Value <$> Random.next random
+  pure $ Log.append self value log
+
+-- |
+-- Aggregate results, print and notify leader that we are done.
+--
+finalise :: ProcessId -> Log ProcessId -> Process ()
+finalise leader log = do
+  self <- Process.getSelfPid
+  let
+    !messages = Log.size log
+    !total = Log.total log
+  Process.say $ mconcat ["messages = ", show messages, ", total = ", show total]
+  Process.reconnect leader
+  Process.send leader (Complete self messages total)
 
 agent :: ProcessId -> Process ()
-agent client =
+agent leader =
   Process.expect >>= \message -> case message of
     Initialise _ _ _ _ -> do
       self <- Process.getSelfPid
       Process.say "it is alive!"
-      Process.send client (Complete self 0 0)
+      Process.send leader (Complete self 0 0)
 
 remotable ['agent]
