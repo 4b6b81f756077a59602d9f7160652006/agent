@@ -49,19 +49,12 @@ The leader will discover the followers via standard
 
 ## building
 
-To gen an executable out in: `dist/build/agent/agent`.
+To get an executable out in: `dist/build/agent/agent`.
 
-I have built and tested this with GHC 8.0.2. There shouldn't be
-anything that causes issues on other versions though.
+I have built and tested this with GHC 8.0.2 and 8.2.1.
 
 You can build it with mafia or cabal (stack should also work, but
 I didn't test it).
-
-Mafia:
-
-```
-./mafia build
-```
 
 Cabal:
 
@@ -72,7 +65,40 @@ cabal configure
 cabal build
 ````
 
+Mafia:
 
+```
+./mafia build
+```
+
+If there are any serious issues you can get a linux build out of docker:
+
+```
+docker build -t markhibberd-iohk .
+docker run -d -it markhibberd-iohk
+docker ps # pull out container-id
+docker cp <container-id>:/usr/local/bin/agent .
+```
+
+Running tests:
+
+````
+./dist/build/test/test
+````
+
+Profiling builds are easiest to get out of mafia:
+```
+./mafia build -p
+
+# then run a follower with RTS options:
+./dist/build/agent/agent +RTS -p -RTS &
+
+# be sure to terminate on completion
+./dist/build/agent/agent --send-for 1 --wait-for 1 --terminate-on-completion
+
+# this will produce agent.prof
+less agent.prof
+```
 
 ## problem
 
@@ -196,3 +222,5 @@ profile will show up a couple of critical areas:
 
  - The delta log calculation. Partly because of the previously mention
    clocks, but also because of the naive vector recreation.
+
+ - The communication overheads dominate the rest.
