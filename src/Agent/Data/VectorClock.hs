@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# OPTIONS_GHC -funbox-strict-fields #-}
 module Agent.Data.VectorClock (
     VectorClock (..)
   , new

@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -funbox-strict-fields #-}
 module Agent.Data.MatrixClock (
     MatrixClock (..)
   , new

@@ -5,6 +5,7 @@ import           System.IO (IO)
 import qualified System.IO as IO
 
 import qualified Test.Agent.Data.Clock
+import qualified Test.Agent.Data.Log
 import qualified Test.Agent.Data.MatrixClock
 import qualified Test.Agent.Data.Random
 import qualified Test.Agent.Data.Timer
@@ -15,6 +16,7 @@ main :: IO ()
 main =
   IO.hSetBuffering IO.stdout IO.LineBuffering >> sequence [
       Test.Agent.Data.Clock.tests
+    , Test.Agent.Data.Log.tests
     , Test.Agent.Data.MatrixClock.tests
     , Test.Agent.Data.Random.tests
     , Test.Agent.Data.Timer.tests

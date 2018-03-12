@@ -2,6 +2,11 @@ module Test.Agent.Gen (
   -- * Clock
     clock
 
+  -- * Log
+  , value
+  , event
+  , events
+
   -- * MatrixClock
   , matrixClock
 
@@ -21,6 +26,7 @@ module Test.Agent.Gen (
   ) where
 
 import           Agent.Data.Clock (Clock (..))
+import           Agent.Data.Log (Value (..), Event (..))
 import           Agent.Data.Random (Seed (..))
 import           Agent.Data.Timer (Duration (..))
 import           Agent.Data.VectorClock (VectorClock (..))
@@ -38,6 +44,18 @@ import qualified Hedgehog.Range as Range
 clock :: Gen Clock
 clock =
   Clock <$> Gen.int64 (Range.linear 0 1000)
+
+value :: Gen Value
+value =
+  Value <$> Gen.double (Range.linearFrac 0 1)
+
+event :: [Char] -> Gen (Event Char)
+event ps =
+  Event <$> clock <*> Gen.element ps <*> value
+
+events :: [Char] -> Gen [Event Char]
+events ps = do
+  Gen.list (Range.linear 0 100) (event ps)
 
 matrixClock :: Gen (MatrixClock Char)
 matrixClock = do

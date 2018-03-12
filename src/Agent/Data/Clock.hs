@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# OPTIONS_GHC -funbox-strict-fields #-}
 module Agent.Data.Clock (
     Clock (..)
   , new
