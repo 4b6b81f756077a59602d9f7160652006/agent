@@ -127,7 +127,7 @@ under which assumptions you chose it.
 ## solution
 
 There are a couple of interesting challenges to be addressed, with
-tradeoffs to be made for each of them. In guiding my implementation, I
+trade-offs to be made for each of them. In guiding my implementation, I
 have taken the following view of the problem (in order of priority):
 
  1. A strong emphasis on making sure that all messages get to all
@@ -145,20 +145,20 @@ have taken the following view of the problem (in order of priority):
  already a decent size interview problem I have opted for focusing
  on (1) and (2).
 
-How I approached the problem boils down to: psuedo-randomness; time &
+How I approached the problem boils down to: pseudo-randomness; time &
 ordering of messages; and, distribution. I have discussed these below.
 
-### psuedo-randomness
+### pseudo-randomness
 
-I interpretted the _deterministic_ random number requirement to mean:
+I interpreted the _deterministic_ random number requirement to mean:
 each run as a whole is deterministic starting from a single seed, with
 individual nodes all having their own independent pseudo-random
 stream. I implemented this in a pretty naive way, the leader starts
 with a single seed for a RNG, the leader splits the RNG by generating
-a derived seed (deterministically from the first seed) in order for
+a derived seed (deterministic from the first seed) in order for
 each follower. Each follower then uses that seed to generate its own
-independent stream of numbers. There are more throrough alorithms for
-creanting splittable RNG's, but they didn't seem necessary in this
+independent stream of numbers. There are more thorough algorithms for
+creating splitable RNG's, but they didn't seem necessary in this
 case.
 
 ### time & order of messages
